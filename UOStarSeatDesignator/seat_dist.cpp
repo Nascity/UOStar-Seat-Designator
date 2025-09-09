@@ -1,4 +1,6 @@
 #include <iostream>
+#include <fstream>
+#include <stdlib.h>
 
 #include "seat_dist.h"
 
@@ -32,20 +34,106 @@ SeatDistributer::SeatDistributer(std::vector<Person>* people)
 	DistributeRandomly();
 }
 
+void SeatDistributer::Print(void)
+{
+	std::wofstream of(L"seat.csv", std::ios_base::binary);
+	int i;
+
+	for (i = 0; i < SEAT_COUNT; i++)
+	{
+		if (!seats[i])
+			continue;
+		std::wcout << i + 1 << L',' << seats[i]->name << L',' << seats[i]->student_number << L'\n';
+		of << i + 1 << L',' << seats[i]->name << L',' << seats[i]->student_number << L'\n';
+	}
+
+	of.close();
+}
+
 void SeatDistributer::Iterate(void)
 {
-	std::wcout << L"제 점수는요: " << CalculateTotalScore() << '\n';
+	int i;
+	double cur_score, new_score;
+	double temperature;
+	int p, q;
+
+	std::ofstream of("iter.csv");
+
+	for (i = 0, cur_score = CalculateTotalScore(), temperature = 1.0;
+		i < ITERATION_LIMIT; i++, temperature *= 0.999)
+	{
+		RandomlySwapSeats(&p, &q);
+		new_score = CalculateTotalScore();
+
+		if (new_score <= cur_score && Annealing(temperature))
+			RevertSeats(p, q);
+		else
+			cur_score = new_score;
+
+		of << i << "," << new_score << '\n';
+		if (i % 10000 == 0)
+			std::wcout << i << L"번째 iteration | 점수: " << cur_score << '\n';
+	}
+
+	of.close();
+}
+
+void SeatDistributer::RandomlySwapSeats(int* p_no, int* q_no)
+{
+	Person* temp;
+
+	*p_no = rand() % SEAT_COUNT + 1;
+	do
+	{
+		*q_no = rand() % SEAT_COUNT + 1;
+	} while (*p_no == *q_no);
+
+	temp = seats[*p_no - 1];
+	seats[*p_no - 1] = seats[*q_no - 1];
+	seats[*q_no - 1] = temp;
+}
+
+void SeatDistributer::RevertSeats(int p_no, int q_no)
+{
+	Person* temp;
+
+	temp = seats[p_no - 1];
+	seats[p_no - 1] = seats[q_no - 1];
+	seats[q_no - 1] = temp;
+}
+
+bool SeatDistributer::Annealing(double temperature)
+{
+	int random;
+
+	random = rand() % 10000;
+
+	return (double)random / 10000.0 >= temperature;
 }
 
 void SeatDistributer::DistributeRandomly(void)
 {
-	// implement!!!!!
-	int i = 0;
+	std::vector<int> seat_no_indices(SEAT_COUNT);
+	int i, j;
 
+	for (i = 0; i < SEAT_COUNT; i++)
+		seat_no_indices[i] = i + 1;
+
+	for (i = SEAT_COUNT - 1; i > 0; i--)
+	{
+		j = rand() % (i + 1);
+		std::swap(seat_no_indices[i], seat_no_indices[j]);
+	}
+
+	i = 0;
 	for (auto it = people->begin();
 		it != people->end();
 		it++, i++)
-		seats[i] = &*it;
+	{
+		int seat_no = seat_no_indices[i];
+
+		seats[seat_no - 1] = &*it;
+	}
 }
 
 double SeatDistributer::CalculateTotalScore(void)

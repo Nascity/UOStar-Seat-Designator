@@ -1,4 +1,6 @@
 #include <iostream>
+#include <cstdlib>
+#include <ctime>
 #include <list>
 
 #include "csvparser.h"
@@ -22,6 +24,7 @@ void WelcomeMessage(void)
 
 void Init(void)
 {
+	srand(time(NULL));
 	SetLocale();
 	WelcomeMessage();
 }
@@ -47,6 +50,7 @@ int main(void)
 
 	SeatDistributer sd(p.GetPeople());
 	sd.Iterate();
+	sd.Print();
 
 	return 0;
 }
